@@ -1,0 +1,64 @@
+/**
+ * Projekt 2 do POS 2010/2011
+ * Autor: Milan Pála, xpalam00
+ */
+
+#define STEPS   4   /* Nebo jiný poèet; poèet synchronizovaných krokù */
+#define NPROC   3   /* Nebo jiný poèet; poèet procesù */
+
+int count[NPROC];   /* Sem ka¾dý proces pøièítá jednièku (jen u sebe) */
+int KS;
+
+/* Sem dejte va¹e vlastní globální promìnné */
+
+/* stavy procesu */
+#define ksOUT	0
+#define ksENTER	1
+#define ksIN	2
+
+int flag[NPROC]; /* pøíznak stavu procesu  */
+int turn; /* pid procesu, který je na øadì */
+
+active [NPROC] proctype P() {    /* Proces; _pid je unikátní èíslo procesu */
+
+    int j;
+    count[_pid] = 0;
+
+end:
+    /* Zde bude ENTRY sekce - èást pøed kritickou sekcí */
+
+	flag[_pid] = ksENTER;
+	do
+	:: (turn != _pid && flag[_pid] == ksOUT) ->
+		turn = _pid;
+	:: (turn != _pid && flag[turn] != ksOUT) ->
+		skip;
+	:: else ->
+		break;
+	od;
+	flag[_pid] = ksIN;
+	j = 0;
+	do
+	:: (j < NPROC && j != _pid && flag[j] == ksIN) ->
+		goto end;
+	:: (j < NPROC && !(j != _pid && flag[j] == ksIN)) ->
+		j++;
+	:: else ->
+		break;
+	od;
+
+progress:                       /* ®ivost */    
+    KS++;
+    /* Zde je kritická sekce */
+    count[_pid]++;
+    assert(KS == 1);         /* Správnost */
+    KS--;
+
+    /* Zde bude EXIT sekce - za kritickou sekcí */
+    flag[_pid] = ksOUT;
+
+    if
+    :: (count[_pid] < STEPS) -> goto end;
+    :: (count[_pid] >= STEPS) -> skip;
+    fi;
+}
